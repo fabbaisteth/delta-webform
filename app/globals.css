@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@import "@fortawesome/fontawesome-free/css/all.css";
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+
+  /* DaisyUI Primary Color - Change these values to customize your primary color */
+  /* Current: blue-600 (#2563eb) */
+  --p: 37 99 235;
+  /* RGB values for primary color */
+  --pc: 255 255 255;
+  /* Primary content color (text on primary background) */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Ensure DaisyUI primary color uses our custom --p variable */
+.btn-primary {
+  background-color: rgb(var(--p));
+  color: rgb(var(--pc));
+}
+
+.border-primary {
+  border-color: rgb(var(--p));
+}
+
+.btn-primary:hover {
+  background-color: rgb(var(--p) / 0.9);
+  border: rgb(var(--p) / 0.9);
+}
+
+body {
+  background: #ffffff;
+  color: #000000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  /* Base font size - increase this to make all text larger */
+}
+
+/* Ensure all form elements use grey styling */
+.input,
+.select,
+.textarea {
+  border-color: #d1d5db;
+  color: #000000;
+  font-size: 1rem;
+  /* Adjust input font size here (1rem = 16px by default) */
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: #9ca3af;
+  outline: none;
+}
+
+.divider {
+  border-color: #e5e7eb;
+  color: #000000;
+  font-size: 1.5rem;
+}
+
+.label-text {
+  color: #000000;
+  font-weight: 500;
+  font-size: 1.25rem;
+  /* Adjust label font size here */
+}
+
+/* Ensure labels display on top in grid layouts */
+.grid .form-control {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid .form-control .label {
+  display: block;
+  width: 100%;
+}
+
+/* Style Google Maps Autocomplete Dropdown */
+.pac-container {
+  background-color: white !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  margin-top: 0.25rem !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  z-index: 9999 !important;
+  padding: 0.25rem 0 !important;
+}
+
+.pac-item {
+  padding: 0.75rem 1rem !important;
+  cursor: pointer !important;
+  border-top: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  font-size: 0.875rem !important;
+  color: #374151 !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.pac-item:last-child {
+  border-bottom: none !important;
+}
+
+.pac-item:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.pac-item-selected {
+  background-color: #eff6ff !important;
+  color: #000000 !important;
+}
+
+.pac-item-query {
+  color: #374151 !important;
+  font-size: 0.875rem !important;
+}
+
+.pac-matched {
+  font-weight: 600 !important;
+  color: #000000 !important;
+}
+
+.pac-icon {
+  margin-right: 0.75rem !important;
+  width: 15px !important;
+  height: 20px !important;
+}
+
+/* Hide default select arrow and style custom ChevronDown */
+select.appearance-none {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+select.appearance-none::-ms-expand {
+  display: none;
+}
