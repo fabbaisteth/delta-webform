@@ -421,8 +421,21 @@ export default function MovingForm() {
         throw new Error('Das Einzugsdatum darf nicht vor dem Auszugsdatum liegen.');
       }
 
-      const totalVolume = formData.total_volume_m3 ||
-        (formData.goods?.reduce((sum, room) => sum + room.volume_m3, 0) || 0);
+      // Calculate volume from furniture_assembly (same logic as review section)
+      const furnitureAssembly = (formData as any).furniture_assembly || [];
+      let calculatedVolume = 0;
+
+      furnitureAssembly.forEach((roomFurniture: any) => {
+        roomFurniture.furniture?.forEach((f: any) => {
+          calculatedVolume += (f.item?.volume_m3 || 0) * (f.quantity || 0);
+        });
+      });
+
+      // Use calculated volume if available, otherwise fall back to manual input or goods
+      const totalVolume = calculatedVolume > 0
+        ? calculatedVolume
+        : (formData.total_volume_m3 ||
+          (formData.goods?.reduce((sum, room) => sum + room.volume_m3, 0) || 0));
 
       const fullName = nameObj
         ? `${nameObj.firstName} ${nameObj.lastName}`.trim()
