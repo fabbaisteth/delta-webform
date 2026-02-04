@@ -146,3 +146,22 @@ select.appearance-none {
 select.appearance-none::-ms-expand {
   display: none;
 }
+
+/* Hide calendar picker icon visually but keep it clickable */
+input[type="date"] {
+  cursor: pointer;
+  -moz-appearance: textfield;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+}
+
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

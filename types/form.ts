@@ -1,4 +1,20 @@
 // TypeScript types matching the Python CustomerForm structure
+export interface CustomerForm {
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  from_location: Location;
+  to_location: Location;
+  services: Services;
+  goods: GoodsRoom[];
+  total_volume_m3: number;
+  moving_out_date: string; // Format: DD-MM-YYYY
+  moving_in_date: string; // Format: DD-MM-YYYY
+  storage_info?: StorageInfo | null;
+  cartonage_info?: CartonageInfo | null;
+  notes?: string | null;
+}
+
 
 export interface AIFeatures {
   waste_disposal: boolean;
@@ -72,21 +88,7 @@ export interface CartonageInfo {
   cartonage_notes: string; // Additional notes about boxes
 }
 
-export interface CustomerForm {
-  customer_name: string;
-  customer_email: string;
-  customer_phone: string;
-  from_location: Location;
-  to_location: Location;
-  services: Services;
-  goods: GoodsRoom[];
-  total_volume_m3: number;
-  moving_out_date: string; // Format: DD-MM-YYYY
-  moving_in_date: string; // Format: DD-MM-YYYY
-  storage_info?: StorageInfo | null;
-  cartonage_info?: CartonageInfo | null;
-  notes?: string | null;
-}
+
 
 export type RoomType = {
   name: string;
