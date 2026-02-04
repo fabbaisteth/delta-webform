@@ -204,7 +204,7 @@ export function RequestDetailModal({
           </div>
 
           {/* Prediction */}
-          {request.prediction && (
+          {request.prediction ? (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Prediction</h3>
@@ -441,24 +441,22 @@ export function RequestDetailModal({
                               <th>
                                 {formatAmount(request.prediction.amount_net)}
                               </th>
+                            </tr>
                           </tfoot>
                         </table>
                       </div>
                     </div>
-                    </div>
+                  )}
+                </div>
               )}
+            </div>
+          ) : (
+            <div className="alert alert-warning">
+              <span>No prediction available for this request</span>
             </div>
           )}
         </div>
-          )}
-
-        {!request.prediction && (
-          <div className="alert alert-warning">
-            <span>No prediction available for this request</span>
-          </div>
-        )}
       </div>
     </div>
-    </div >
   );
 }
