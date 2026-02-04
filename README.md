@@ -46,6 +46,7 @@ cp .env.example .env.local
 ```
 NEXT_PUBLIC_API_URL=http://localhost:4001
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+NEXT_PUBLIC_ADMIN_PASSWORD=your_admin_password_here
 ```
 
 **Google Maps API Key Setup:**
@@ -137,3 +138,27 @@ Alle Formulardaten werden im State gespeichert und bleiben beim Navigieren zwisc
 ## API Integration
 
 Das Formular sendet POST-Requests an `/api/submit-form` mit der vollständigen `CustomerForm` Struktur.
+
+## Admin Dashboard
+
+Das Admin-Dashboard ist unter `/admin/requests` verfügbar und zeigt alle Anfragen mit ausstehenden E-Mails an.
+
+### Zugriff:
+
+1. Navigiere zu `/admin/login`
+2. Gib das Admin-Passwort ein (standardmäßig `admin123`, kann über `NEXT_PUBLIC_ADMIN_PASSWORD` geändert werden)
+3. Nach erfolgreicher Anmeldung wirst du zum Dashboard weitergeleitet
+
+### Features:
+
+- **Übersicht aller Anfragen** mit ausstehenden E-Mails
+- **Suche** nach Kunde oder E-Mail-Adresse
+- **Detailsansicht** mit vollständigen Request-Informationen
+- **Bearbeitung von Predictions** (Betrag, Stundenlohn, Arbeitsstunden, Positionen)
+- **E-Mail-Status** Anzeige (pending, approved, failed)
+
+### Sicherheit:
+
+- Passwort-geschützter Zugriff über Session Storage
+- Automatische Weiterleitung zur Login-Seite bei fehlender Authentifizierung
+- Logout-Funktion zum Beenden der Session
