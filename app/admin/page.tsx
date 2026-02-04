@@ -5,10 +5,34 @@ import { useRouter } from 'next/navigation';
 import { LogOut, RefreshCw } from 'lucide-react';
 import RequestsTable from '@/components/RequestsTable';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:4001'
-    : '');
+const getApiUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  // Check if we're on localhost
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return envUrl || 'http://localhost:4001';
+  }
+
+  // If no env URL, try to use same origin (if API is on same domain)
+  if (!envUrl) {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return '';
+  }
+
+  // Check if URL contains internal domains (Railway, etc.)
+  if (envUrl.includes('.internal') || envUrl.includes('railway.internal')) {
+    console.error('API URL appears to be an internal URL. Please set NEXT_PUBLIC_API_URL to a public URL.');
+    // Try to construct public URL from internal URL
+    const publicUrl = envUrl.replace('.railway.internal', '.railway.app').replace('http://', 'https://');
+    return publicUrl;
+  }
+
+  return envUrl;
+};
+
+const API_URL = getApiUrl();
 
 interface RequestWithEmailStatus {
   id: number;
@@ -25,6 +49,7 @@ interface RequestWithEmailStatus {
   prediction: any | null;
   email_status: string | null;
   prediction_id: number | null;
+  data_parsed?: any; // Full CustomerForm data from the request
 }
 
 export default function AdminPage() {

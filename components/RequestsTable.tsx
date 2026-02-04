@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Eye, RefreshCw } from 'lucide-react';
+import { Mail, RefreshCw } from 'lucide-react';
 import { RequestDetailModal } from './RequestDetailModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ||
@@ -44,6 +44,7 @@ interface RequestWithEmailStatus {
   prediction: AIPredictionResponse | null;
   email_status: string | null;
   prediction_id: number | null;
+  data_parsed?: any; // Full CustomerForm data from the request
 }
 
 interface RequestsTableProps {
@@ -81,7 +82,8 @@ export default function RequestsTable({
     return localStorage.getItem('admin_authenticated') === 'true';
   };
 
-  const handleSendEmail = async (requestId: number) => {
+  const handleSendEmail = async (e: React.MouseEvent, requestId: number) => {
+    e.stopPropagation(); // Prevent row click from opening modal
     if (!isAuthenticated()) {
       alert('Not authenticated');
       return;
@@ -89,11 +91,12 @@ export default function RequestsTable({
 
     setSendingEmail(requestId);
     try {
-      const response = await fetch(`${API_URL}/api/admin/send-email/${requestId}`, {
+      const response = await fetch(`${API_URL}/api/send_offer_mail`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ request_id: requestId }),
       });
 
       if (!response.ok) {
@@ -289,11 +292,19 @@ export default function RequestsTable({
           </thead>
           <tbody>
             {sortedRequests.map((request) => (
-              <tr key={request.id}>
+              <tr
+                key={request.id}
+                className="cursor-pointer hover:bg-base-200 transition-colors"
+                onClick={() => setSelectedRequest(request)}
+              >
                 <td className="font-semibold">#{request.id}</td>
                 <td>{request.customer_name}</td>
                 <td>
-                  <a href={`mailto:${request.customer_email}`} className="link link-primary">
+                  <a
+                    href={`mailto:${request.customer_email}`}
+                    className="link link-primary"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {request.customer_email}
                   </a>
                 </td>
@@ -309,9 +320,9 @@ export default function RequestsTable({
                   </div>
                 </td>
                 <td>
-                  {request.total_volume_cbm ? (
+                  {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined ? (
                     <span className="badge badge-outline">
-                      {request.total_volume_cbm.toFixed(1)} m³
+                      {Number(request.total_volume_cbm).toFixed(2)} m³
                     </span>
                   ) : (
                     <span className="text-gray-400">-</span>
@@ -319,28 +330,19 @@ export default function RequestsTable({
                 </td>
                 <td className="text-sm">{formatDate(request.received_at)}</td>
                 <td>{getStatusBadge(request.email_status)}</td>
-                <td>
-                  <div className="flex gap-2">
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      onClick={() => setSelectedRequest(request)}
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="btn btn-sm btn-primary"
-                      onClick={() => handleSendEmail(request.id)}
-                      disabled={sendingEmail === request.id}
-                      title="Send Email"
-                    >
-                      {sendingEmail === request.id ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Mail className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={(e) => handleSendEmail(e, request.id)}
+                    disabled={sendingEmail === request.id}
+                    title="Send Email"
+                  >
+                    {sendingEmail === request.id ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Mail className="w-4 h-4" />
+                    )}
+                  </button>
                 </td>
               </tr>
             ))}

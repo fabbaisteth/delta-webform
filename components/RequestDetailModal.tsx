@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Save } from "lucide-react";
+import { X, Save, Plus, Trash2 } from "lucide-react";
 
 interface PositionInfo {
   position_class: string;
@@ -38,6 +38,7 @@ interface RequestWithEmailStatus {
   prediction: AIPredictionResponse | null;
   email_status: string | null;
   prediction_id: number | null;
+  data_parsed?: any; // Full CustomerForm data from the request
 }
 
 interface RequestDetailModalProps {
@@ -118,6 +119,26 @@ export function RequestDetailModal({
     setAmountNet(newTotal);
   };
 
+  const addPosition = () => {
+    const newPosition: PositionInfo = {
+      position_class: '',
+      description: '',
+      quantity: 1,
+      unit_price: 0,
+      unit: 'Stk',
+      total_price: 0,
+    };
+    setPositions([...positions, newPosition]);
+  };
+
+  const removePosition = (index: number) => {
+    const updated = positions.filter((_, i) => i !== index);
+    setPositions(updated);
+    // Recalculate total amount_net
+    const newTotal = updated.reduce((sum, pos) => sum + pos.total_price, 0) * 100;
+    setAmountNet(newTotal);
+  };
+
   const calculatedTotal = positions.reduce((sum, pos) => sum + pos.total_price, 0);
 
   return (
@@ -173,10 +194,22 @@ export function RequestDetailModal({
                   <div className="font-medium">{request.distance_km.toFixed(1)} km</div>
                 </div>
               )}
-              {request.total_volume_cbm && (
+              {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined && (
                 <div>
                   <label className="text-sm text-base-content/60">Volume</label>
-                  <div className="font-medium">{request.total_volume_cbm.toFixed(1)} m³</div>
+                  <div className="font-medium">{Number(request.total_volume_cbm).toFixed(2)} m³</div>
+                </div>
+              )}
+              {request.moving_out_date && (
+                <div>
+                  <label className="text-sm text-base-content/60">Moving Out Date</label>
+                  <div className="font-medium">{request.moving_out_date}</div>
+                </div>
+              )}
+              {request.moving_in_date && (
+                <div>
+                  <label className="text-sm text-base-content/60">Moving In Date</label>
+                  <div className="font-medium">{request.moving_in_date}</div>
                 </div>
               )}
               <div>
@@ -202,6 +235,171 @@ export function RequestDetailModal({
               </div>
             </div>
           </div>
+
+          {/* Form Data Details */}
+          {request.data_parsed && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">Form Data</h3>
+
+              {/* Services */}
+              {request.data_parsed.services && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Services</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {request.data_parsed.services.carton_pack && <div>✓ Carton Pack</div>}
+                    {request.data_parsed.services.carton_unpack && <div>✓ Carton Unpack</div>}
+                    {request.data_parsed.services.furniture_disassembly && <div>✓ Furniture Disassembly</div>}
+                    {request.data_parsed.services.furniture_assembly && <div>✓ Furniture Assembly</div>}
+                    {request.data_parsed.services.lamps_disassembly && (
+                      <div>✓ Lamps Disassembly ({request.data_parsed.services.number_of_lamps_to_disassemble || 0})</div>
+                    )}
+                    {request.data_parsed.services.lamps_assembly && (
+                      <div>✓ Lamps Assembly ({request.data_parsed.services.number_of_lamps_to_assemble || 0})</div>
+                    )}
+                    {request.data_parsed.services.kitchen_disassembly && <div>✓ Kitchen Disassembly</div>}
+                    {request.data_parsed.services.kitchen_assembly && <div>✓ Kitchen Assembly</div>}
+                    {request.data_parsed.services.storage && <div>✓ Storage</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Goods/Furniture */}
+              {request.data_parsed.goods && request.data_parsed.goods.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Goods</h4>
+                  <div className="space-y-2">
+                    {request.data_parsed.goods.map((room: any, idx: number) => (
+                      <div key={idx} className="border-l-2 border-blue-500 pl-3">
+                        <div className="font-semibold">{room.name}</div>
+                        <div className="text-sm text-gray-600">Volume: {room.volume_m3?.toFixed(2) || 0} m³</div>
+                        {room.items && room.items.length > 0 && (
+                          <div className="text-sm mt-1">
+                            {room.items.map((item: any, itemIdx: number) => (
+                              <div key={itemIdx} className="ml-2">
+                                • {item.description} (Qty: {item.quantity}, Vol: {item.volume_per_item_m3?.toFixed(2) || 0} m³)
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Furniture Assembly */}
+              {request.data_parsed.furniture_assembly && Array.isArray(request.data_parsed.furniture_assembly) && request.data_parsed.furniture_assembly.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Furniture Assembly</h4>
+                  <div className="space-y-2">
+                    {request.data_parsed.furniture_assembly.map((roomFurniture: any, idx: number) => (
+                      <div key={idx} className="border-l-2 border-green-500 pl-3">
+                        <div className="font-semibold">{roomFurniture.room?.label || roomFurniture.room?.name || 'Room'}</div>
+                        {roomFurniture.furniture && roomFurniture.furniture.length > 0 && (
+                          <div className="text-sm mt-1">
+                            {roomFurniture.furniture.map((f: any, fIdx: number) => (
+                              <div key={fIdx} className="ml-2">
+                                • {f.item?.label || f.item?.name || 'Item'} (Qty: {f.quantity}, Vol: {((f.item?.volume_m3 || 0) * (f.quantity || 0)).toFixed(2)} m³)
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Storage Info */}
+              {request.data_parsed.storage_info && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Storage Information</h4>
+                  <div className="text-sm space-y-1">
+                    <div>Wants Storage: {request.data_parsed.storage_info.wants_storage ? 'Yes' : 'No'}</div>
+                    {request.data_parsed.storage_info.storage_date && (
+                      <div>Storage Date: {request.data_parsed.storage_info.storage_date}</div>
+                    )}
+                    {request.data_parsed.storage_info.retrieval_date && (
+                      <div>Retrieval Date: {request.data_parsed.storage_info.retrieval_date}</div>
+                    )}
+                    {request.data_parsed.storage_info.retrieval_address && (
+                      <div>Retrieval Address: {request.data_parsed.storage_info.retrieval_address.address ||
+                        `${request.data_parsed.storage_info.retrieval_address.street_name} ${request.data_parsed.storage_info.retrieval_address.house_number}, ${request.data_parsed.storage_info.retrieval_address.city}`}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Cartonage Info */}
+              {request.data_parsed.cartonage_info && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Cartonage Information</h4>
+                  <div className="text-sm space-y-1">
+                    {request.data_parsed.cartonage_info.boxes_to_buy > 0 && (
+                      <div>Boxes to Buy: {request.data_parsed.cartonage_info.boxes_to_buy}</div>
+                    )}
+                    {request.data_parsed.cartonage_info.boxes_to_rent > 0 && (
+                      <div>Boxes to Rent: {request.data_parsed.cartonage_info.boxes_to_rent}</div>
+                    )}
+                    {request.data_parsed.cartonage_info.wardrobe_boxes_to_rent > 0 && (
+                      <div>Wardrobe Boxes to Rent: {request.data_parsed.cartonage_info.wardrobe_boxes_to_rent}</div>
+                    )}
+                    {request.data_parsed.cartonage_info.packing_service_quantity > 0 && (
+                      <div>Packing Service: {request.data_parsed.cartonage_info.packing_service_quantity} boxes</div>
+                    )}
+                    {request.data_parsed.cartonage_info.unpacking_service_quantity > 0 && (
+                      <div>Unpacking Service: {request.data_parsed.cartonage_info.unpacking_service_quantity} boxes</div>
+                    )}
+                    {request.data_parsed.cartonage_info.delivery_date && (
+                      <div>Delivery Date: {request.data_parsed.cartonage_info.delivery_date}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Location Details */}
+              {(request.data_parsed.from_location || request.data_parsed.to_location) && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Location Details</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {request.data_parsed.from_location && (
+                      <div>
+                        <div className="font-semibold mb-1">From Location:</div>
+                        <div>Type: {request.data_parsed.from_location.object_type}</div>
+                        <div>Floor: {request.data_parsed.from_location.floor}</div>
+                        <div>Living Space: {request.data_parsed.from_location.living_space_m2} m²</div>
+                        <div>Elevator: {request.data_parsed.from_location.has_elevator ? 'Yes' : 'No'}</div>
+                        <div>Parking Zone: {request.data_parsed.from_location.needs_parking_zone ? 'Yes' : 'No'}</div>
+                        <div>Walkway: {request.data_parsed.from_location.walkway_m} m</div>
+                      </div>
+                    )}
+                    {request.data_parsed.to_location && (
+                      <div>
+                        <div className="font-semibold mb-1">To Location:</div>
+                        <div>Type: {request.data_parsed.to_location.object_type}</div>
+                        <div>Floor: {request.data_parsed.to_location.floor}</div>
+                        <div>Living Space: {request.data_parsed.to_location.living_space_m2} m²</div>
+                        <div>Elevator: {request.data_parsed.to_location.has_elevator ? 'Yes' : 'No'}</div>
+                        <div>Parking Zone: {request.data_parsed.to_location.needs_parking_zone ? 'Yes' : 'No'}</div>
+                        <div>Walkway: {request.data_parsed.to_location.walkway_m} m</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {request.data_parsed.notes && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2">Notes</h4>
+                  <div className="text-sm bg-gray-50 p-3 rounded">
+                    {request.data_parsed.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Prediction */}
           {request.prediction ? (
@@ -266,23 +464,46 @@ export function RequestDetailModal({
 
                   {/* Positions */}
                   <div>
-                    <label className="label">
-                      <span className="label-text font-semibold">Positions</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="label">
+                        <span className="label-text font-semibold">Positions</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        onClick={addPosition}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Position
+                      </button>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="table table-zebra table-sm">
                         <thead>
                           <tr>
+                            <th>Class</th>
                             <th>Description</th>
                             <th>Quantity</th>
                             <th>Unit Price</th>
                             <th>Unit</th>
                             <th>Total</th>
+                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {positions.map((pos, index) => (
                             <tr key={index}>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="input input-bordered input-sm w-full"
+                                  value={pos.position_class}
+                                  onChange={(e) =>
+                                    updatePosition(index, "position_class", e.target.value)
+                                  }
+                                  placeholder="Class"
+                                />
+                              </td>
                               <td>
                                 <input
                                   type="text"
@@ -336,13 +557,31 @@ export function RequestDetailModal({
                               <td className="font-semibold">
                                 {formatAmount(pos.total_price * 100)}
                               </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-ghost btn-error"
+                                  onClick={() => removePosition(index)}
+                                  title="Remove position"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
                             </tr>
                           ))}
+                          {positions.length === 0 && (
+                            <tr>
+                              <td colSpan={7} className="text-center text-gray-500 py-4">
+                                No positions. Click "Add Position" to add one.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                         <tfoot>
                           <tr>
-                            <th colSpan={4}>Total</th>
+                            <th colSpan={5}>Total</th>
                             <th>{formatAmount(calculatedTotal * 100)}</th>
+                            <th></th>
                           </tr>
                         </tfoot>
                       </table>
@@ -415,6 +654,7 @@ export function RequestDetailModal({
                         <table className="table table-zebra table-sm">
                           <thead>
                             <tr>
+                              <th>Class</th>
                               <th>Description</th>
                               <th>Quantity</th>
                               <th>Unit Price</th>
@@ -425,6 +665,7 @@ export function RequestDetailModal({
                           <tbody>
                             {request.prediction.positions.map((pos, index) => (
                               <tr key={index}>
+                                <td>{pos.position_class || '-'}</td>
                                 <td>{pos.description}</td>
                                 <td>{pos.quantity}</td>
                                 <td>{formatAmount(pos.unit_price * 100)}</td>
@@ -437,7 +678,7 @@ export function RequestDetailModal({
                           </tbody>
                           <tfoot>
                             <tr>
-                              <th colSpan={4}>Total</th>
+                              <th colSpan={5}>Total</th>
                               <th>
                                 {formatAmount(request.prediction.amount_net)}
                               </th>
