@@ -15,7 +15,6 @@ export interface CustomerForm {
   notes?: string | null;
 }
 
-
 export interface AIFeatures {
   waste_disposal: boolean;
   waste_disposal_cbm?: number | null;
@@ -45,7 +44,7 @@ export interface Location {
   state?: string;
   postal_code?: string;
   country?: string;
-  object_type: 'Wohnung' | 'Haus' | 'WG Zimmer' | 'Maisonette';
+  object_type: 'Wohnung' | 'Haus';
   floor: number;
   living_space_m2: number;
   has_elevator: boolean;

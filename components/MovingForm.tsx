@@ -103,7 +103,6 @@ const STORAGE_STEP_KEY = 'moving-form-step';
 export default function MovingForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [requestId, setRequestId] = useState<string | undefined>();
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error' | null;
     message: string;
@@ -485,12 +484,8 @@ export default function MovingForm() {
       }
 
       const result = await response.json();
-      setRequestId(result.request_id);
+      console.log('Request ID:', result.request_id);
       setIsSubmitted(true);
-      setSubmitStatus({
-        type: 'success',
-        message: `Anfrage erfolgreich übermittelt! Request ID: ${result.request_id}`,
-      });
 
       // Don't clear localStorage on success - allows resubmission if needed
       // User can manually clear or start a new form
@@ -830,7 +825,6 @@ export default function MovingForm() {
   // Function to resubmit the form
   const handleResubmit = () => {
     setIsSubmitted(false);
-    setRequestId(undefined);
     setSubmitStatus({ type: null, message: '' });
     // Form data is already preserved in state and localStorage, so we can just resubmit
     // Scroll to top to show the form again
@@ -839,7 +833,7 @@ export default function MovingForm() {
 
   // Early return AFTER all hooks are declared
   if (isSubmitted) {
-    return <ThankYouScreen requestId={requestId} onResubmit={handleResubmit} />;
+    return <ThankYouScreen onResubmit={handleResubmit} />;
   }
 
   const visibleGroups = getVisibleStepGroups();

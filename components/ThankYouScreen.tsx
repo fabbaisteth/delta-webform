@@ -2,12 +2,8 @@
 
 import { CheckCircle } from 'lucide-react';
 
-interface ThankYouScreenProps {
-  requestId?: string;
-  onResubmit?: () => void;
-}
 
-export default function ThankYouScreen({ requestId, onResubmit }: ThankYouScreenProps) {
+export default function ThankYouScreen({ onResubmit }: { onResubmit: () => void }) {
   return (
     <div className="min-h-screen bg-white py-8 px-4 flex items-center justify-center">
       <div className="max-w-2xl mx-auto text-center">
@@ -23,11 +19,6 @@ export default function ThankYouScreen({ requestId, onResubmit }: ThankYouScreen
             <p className="text-gray-600 mb-6">
               Wir werden uns in Kürze bei Ihnen melden.
             </p>
-            {requestId && (
-              <div className="alert bg-gray-100 border border-gray-300 text-black mb-4">
-                <span className="text-sm">Request ID: {requestId}</span>
-              </div>
-            )}
             {onResubmit && (
               <div className="mt-4">
                 <button
