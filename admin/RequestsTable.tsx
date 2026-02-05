@@ -361,6 +361,7 @@ export default function RequestsTable({
               <th>Customer</th>
               <th>Email</th>
               <th>From → To</th>
+              <th>Distance</th>
               <th>Volume</th>
               <th>Date</th>
               <th>Status</th>
@@ -399,6 +400,15 @@ export default function RequestsTable({
                         {toAddr}
                       </div>
                     </div>
+                  </td>
+                  <td>
+                    {request.distance_km !== null && request.distance_km !== undefined ? (
+                      <span className="badge badge-outline">
+                        {Number(request.distance_km).toFixed(1)} km
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td>
                     {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined ? (

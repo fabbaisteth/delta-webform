@@ -281,6 +281,14 @@ export default function MovingForm() {
             });
           }
 
+          // Ensure parking zones default to false unless explicitly set to true
+          if (parsedData.from_location) {
+            parsedData.from_location.needs_parking_zone = parsedData.from_location.needs_parking_zone === true;
+          }
+          if (parsedData.to_location) {
+            parsedData.to_location.needs_parking_zone = parsedData.to_location.needs_parking_zone === true;
+          }
+
           setFormData(parsedData);
         } catch (error) {
           console.error('Error loading form data from localStorage:', error);
