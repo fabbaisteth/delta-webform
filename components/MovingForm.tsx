@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CustomerForm, Location } from '@/types/form';
+import { CustomerForm, Location, GoodsRoom, GoodsItem } from '@/types/form';
 import {
   AlertCircle,
   Loader2, ChevronLeft, ChevronRight, Check, X
@@ -422,19 +422,62 @@ export default function MovingForm() {
 
       // Calculate volume from furniture_assembly (same logic as review section)
       const furnitureAssembly = (formData as any).furniture_assembly || [];
-      let calculatedVolume = 0;
+      let calculatedVolumeFromFurniture = 0;
 
       furnitureAssembly.forEach((roomFurniture: any) => {
-        roomFurniture.furniture?.forEach((f: any) => {
-          calculatedVolume += (f.item?.volume_m3 || 0) * (f.quantity || 0);
+        const furniture = roomFurniture.furniture || [];
+        furniture.forEach((f: any) => {
+          const itemVolume = f.item?.volume_m3 || 0;
+          const quantity = f.quantity || 0;
+          calculatedVolumeFromFurniture += itemVolume * quantity;
         });
       });
 
-      // Use calculated volume if available, otherwise fall back to manual input or goods
-      const totalVolume = calculatedVolume > 0
-        ? calculatedVolume
-        : (formData.total_volume_m3 ||
-          (formData.goods?.reduce((sum, room) => sum + room.volume_m3, 0) || 0));
+      // Calculate volume from existing goods array
+      const calculatedVolumeFromGoods = (formData.goods || []).reduce((sum: number, room: GoodsRoom) => {
+        return sum + (room.volume_m3 || 0);
+      }, 0);
+
+      // Use calculated volume from furniture if available, otherwise from goods, otherwise manual input
+      const totalVolume = calculatedVolumeFromFurniture > 0
+        ? calculatedVolumeFromFurniture
+        : (calculatedVolumeFromGoods > 0
+          ? calculatedVolumeFromGoods
+          : (formData.total_volume_m3 || 0));
+
+      // Convert furniture_assembly to goods format for backend
+      // Only include rooms that have furniture items
+      const goodsFromFurniture: GoodsRoom[] = furnitureAssembly
+        .filter((roomFurniture: any) => {
+          const furniture = roomFurniture.furniture || [];
+          return furniture.length > 0 && furniture.some((f: any) => f.item && (f.quantity || 0) > 0);
+        })
+        .map((roomFurniture: any) => {
+          const furniture = roomFurniture.furniture || [];
+          const items: GoodsItem[] = furniture
+            .filter((f: any) => f.item && (f.quantity || 0) > 0)
+            .map((f: any) => ({
+              description: f.item?.label || f.item?.name || 'Unknown item',
+              quantity: f.quantity || 0,
+              volume_per_item_m3: f.item?.volume_m3 || 0,
+            }));
+
+          // Calculate room volume as sum of (volume_per_item_m3 * quantity) for all items
+          const roomVolume = items.reduce((sum: number, item: GoodsItem) => {
+            return sum + (item.volume_per_item_m3 * item.quantity);
+          }, 0);
+
+          return {
+            name: roomFurniture.room?.name || 'unknown',
+            items: items,
+            volume_m3: roomVolume,
+          };
+        });
+
+      // Use goods from furniture_assembly if it has items, otherwise use existing goods
+      const finalGoods = goodsFromFurniture.length > 0
+        ? goodsFromFurniture
+        : (formData.goods || []);
 
       const fullName = nameObj
         ? `${nameObj.firstName} ${nameObj.lastName}`.trim()
@@ -447,7 +490,7 @@ export default function MovingForm() {
         from_location: formData.from_location!,
         to_location: formData.to_location!,
         services: formData.services!,
-        goods: formData.goods || [],
+        goods: finalGoods,
         total_volume_m3: totalVolume,
         moving_out_date: formData.moving_out_date!,
         moving_in_date: formData.moving_in_date!,
