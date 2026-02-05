@@ -42,6 +42,35 @@ export interface ApiError {
 }
 
 /**
+ * Position info interface for prediction updates
+ */
+export interface PositionInfo {
+  description: string;
+  amount: number;
+  unit_price: number;
+  total_price: number;
+}
+
+/**
+ * Update prediction request interface
+ */
+export interface UpdatePredictionRequest {
+  amount_net?: number; // in cents
+  hourly_rate?: number;
+  ai_workhours?: number;
+  positions?: PositionInfo[];
+}
+
+/**
+ * Update prediction response interface
+ */
+export interface UpdatePredictionResponse {
+  status: 'success';
+  prediction_uuid: string;
+  message?: string;
+}
+
+/**
  * Loads form data from localStorage
  */
 export function loadFormDataFromStorage(): Partial<CustomerForm> | null {
@@ -112,5 +141,62 @@ export async function submitForm(formData?: CustomerForm): Promise<SubmitFormRes
     status: 'success',
     request_uuid: result.request_uuid || result.request_id,
     message: result.message || 'Request submitted successfully',
+  };
+}
+
+/**
+ * Updates prediction data in the database
+ * This triggers regeneration of documents and sends email with PDF attachment
+ * 
+ * @param predictionUuid - UUID of the prediction to update
+ * @param updates - Partial update data (amount_net, hourly_rate, ai_workhours, positions)
+ * @returns Updated prediction response
+ */
+export async function updatePrediction(
+  predictionUuid: string,
+  updates: UpdatePredictionRequest
+): Promise<UpdatePredictionResponse> {
+  if (!predictionUuid) {
+    throw new Error('Prediction UUID is required');
+  }
+
+  const apiUrl = getApiUrl();
+
+  if (!apiUrl) {
+    throw new Error('API URL is not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/predictions/${predictionUuid}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    let error: ApiError;
+    try {
+      const errorText = await response.text();
+      try {
+        error = JSON.parse(errorText);
+      } catch {
+        error = {
+          error: errorText || `Server error: ${response.status} ${response.statusText}`
+        };
+      }
+    } catch (e) {
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+    }
+
+    const errorMessage = error.detail?.error || error.error || 'Failed to update prediction';
+    throw new Error(errorMessage);
+  }
+
+  const result = await response.json();
+  return {
+    status: 'success',
+    prediction_uuid: result.prediction_uuid || predictionUuid,
+    message: result.message || 'Prediction updated successfully',
   };
 }

@@ -89,6 +89,17 @@ export function RequestDetailModal({
     }).format(cents / 100);
   };
 
+  const formatAmountTotal = (cents: number) => {
+    // Round to whole euros (no cents)
+    const euros = Math.round(cents / 100);
+    return new Intl.NumberFormat("de-DE", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(euros);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("de-DE", {
       day: "2-digit",
@@ -215,74 +226,76 @@ export function RequestDetailModal({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Request Info */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-4">Request Details</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-base-content/60">Customer Email</label>
-                <div className="font-medium">{request.customer_email}</div>
-              </div>
-              {request.customer_phone && (
+          {!editing && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">Request Details</h3>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-sm text-base-content/60">Phone</label>
-                  <div className="font-medium">{request.customer_phone}</div>
+                  <label className="text-sm text-base-content/60">Customer Email</label>
+                  <div className="font-medium">{request.customer_email}</div>
                 </div>
-              )}
-              <div>
-                <label className="text-sm text-base-content/60">From Address</label>
-                <div className="font-medium">{formatAddress(request, 'from')}</div>
-              </div>
-              <div>
-                <label className="text-sm text-base-content/60">To Address</label>
-                <div className="font-medium">{formatAddress(request, 'to')}</div>
-              </div>
-              {request.distance_km && (
+                {request.customer_phone && (
+                  <div>
+                    <label className="text-sm text-base-content/60">Phone</label>
+                    <div className="font-medium">{request.customer_phone}</div>
+                  </div>
+                )}
                 <div>
-                  <label className="text-sm text-base-content/60">Distance</label>
-                  <div className="font-medium">{request.distance_km.toFixed(1)} km</div>
+                  <label className="text-sm text-base-content/60">From Address</label>
+                  <div className="font-medium">{formatAddress(request, 'from')}</div>
                 </div>
-              )}
-              {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined && (
                 <div>
-                  <label className="text-sm text-base-content/60">Volume</label>
-                  <div className="font-medium">{Number(request.total_volume_cbm).toFixed(2)} m³</div>
+                  <label className="text-sm text-base-content/60">To Address</label>
+                  <div className="font-medium">{formatAddress(request, 'to')}</div>
                 </div>
-              )}
-              {request.moving_out_date && (
+                {request.distance_km && (
+                  <div>
+                    <label className="text-sm text-base-content/60">Distance</label>
+                    <div className="font-medium">{request.distance_km.toFixed(1)} km</div>
+                  </div>
+                )}
+                {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined && (
+                  <div>
+                    <label className="text-sm text-base-content/60">Volume</label>
+                    <div className="font-medium">{Number(request.total_volume_cbm).toFixed(2)} m³</div>
+                  </div>
+                )}
+                {request.moving_out_date && (
+                  <div>
+                    <label className="text-sm text-base-content/60">Moving Out Date</label>
+                    <div className="font-medium">{request.moving_out_date}</div>
+                  </div>
+                )}
+                {request.moving_in_date && (
+                  <div>
+                    <label className="text-sm text-base-content/60">Moving In Date</label>
+                    <div className="font-medium">{request.moving_in_date}</div>
+                  </div>
+                )}
                 <div>
-                  <label className="text-sm text-base-content/60">Moving Out Date</label>
-                  <div className="font-medium">{request.moving_out_date}</div>
+                  <label className="text-sm text-base-content/60">Received</label>
+                  <div className="font-medium">{formatDate(request.received_at)}</div>
                 </div>
-              )}
-              {request.moving_in_date && (
                 <div>
-                  <label className="text-sm text-base-content/60">Moving In Date</label>
-                  <div className="font-medium">{request.moving_in_date}</div>
-                </div>
-              )}
-              <div>
-                <label className="text-sm text-base-content/60">Received</label>
-                <div className="font-medium">{formatDate(request.received_at)}</div>
-              </div>
-              <div>
-                <label className="text-sm text-base-content/60">Email Status</label>
-                <div>
-                  <span
-                    className={`badge ${request.email_status === "pending"
-                      ? "badge-warning"
-                      : request.email_status === "approved"
-                        ? "badge-info"
-                        : request.email_status === "failed"
-                          ? "badge-error"
-                          : "badge-ghost"
-                      }`}
-                  >
-                    {request.email_status || "No email"}
-                  </span>
+                  <label className="text-sm text-base-content/60">Email Status</label>
+                  <div>
+                    <span
+                      className={`badge ${request.email_status === "pending"
+                        ? "badge-warning"
+                        : request.email_status === "approved"
+                          ? "badge-info"
+                          : request.email_status === "failed"
+                            ? "badge-error"
+                            : "badge-ghost"
+                        }`}
+                    >
+                      {request.email_status || "No email"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Form Data Details */}
           {request.data_parsed && (
@@ -451,21 +464,13 @@ export function RequestDetailModal({
 
           {/* Prediction */}
           {request.prediction ? (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="mb-6 w-full">
+              <div className="mb-4">
                 <h3 className="text-lg font-semibold">Prediction</h3>
-                {!editing && (
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => setEditing(true)}
-                  >
-                    Edit
-                  </button>
-                )}
               </div>
 
               {editing ? (
-                <div className="space-y-4">
+                <div className="space-y-4 w-full">
                   {/* Summary Fields */}
                   <div className="grid grid-cols-3 gap-4">
                     <div>
@@ -511,7 +516,7 @@ export function RequestDetailModal({
                   </div>
 
                   {/* Positions */}
-                  <div>
+                  <div className="w-full">
                     <div className="flex items-center justify-between mb-2">
                       <label className="label">
                         <span className="label-text font-semibold">Positions</span>
@@ -525,15 +530,14 @@ export function RequestDetailModal({
                         Add Position
                       </button>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="table table-zebra table-sm">
+                    <div className="overflow-x-auto w-full">
+                      <table className="table table-zebra table-auto w-full" style={{ width: '100%' }}>
                         <thead>
                           <tr>
                             <th>Class</th>
                             <th>Description</th>
                             <th>Quantity</th>
                             <th>Unit Price</th>
-                            <th>Unit</th>
                             <th>Total</th>
                             <th>Actions</th>
                           </tr>
@@ -592,16 +596,6 @@ export function RequestDetailModal({
                                   }
                                 />
                               </td>
-                              <td>
-                                <input
-                                  type="text"
-                                  className="input input-bordered input-sm w-full"
-                                  value={pos.unit}
-                                  onChange={(e) =>
-                                    updatePosition(index, "unit", e.target.value)
-                                  }
-                                />
-                              </td>
                               <td className="font-semibold">
                                 {formatAmount(pos.total_price * 100)}
                               </td>
@@ -628,7 +622,7 @@ export function RequestDetailModal({
                         <tfoot>
                           <tr>
                             <th colSpan={5}>Total</th>
-                            <th>{formatAmount(calculatedTotal * 100)}</th>
+                            <th>{formatAmountTotal(calculatedTotal * 100)}</th>
                             <th></th>
                           </tr>
                         </tfoot>
@@ -675,7 +669,7 @@ export function RequestDetailModal({
                     <div>
                       <label className="text-sm text-base-content/60">Total Amount</label>
                       <div className="text-lg font-semibold">
-                        {formatAmount(request.prediction.amount_net)}
+                        {formatAmountTotal(request.prediction.amount_net)}
                       </div>
                     </div>
                     <div>
@@ -694,19 +688,18 @@ export function RequestDetailModal({
 
                   {/* Positions Table */}
                   {request.prediction.positions && request.prediction.positions.length > 0 && (
-                    <div>
+                    <div className="w-full">
                       <label className="text-sm text-base-content/60 mb-2 block">
                         Positions
                       </label>
                       <div className="overflow-x-auto">
-                        <table className="table table-zebra table-sm">
+                        <table className="table table-zebra table-auto" >
                           <thead>
                             <tr>
                               <th>Class</th>
                               <th>Description</th>
                               <th>Quantity</th>
                               <th>Unit Price</th>
-                              <th>Unit</th>
                               <th>Total</th>
                             </tr>
                           </thead>
@@ -717,7 +710,6 @@ export function RequestDetailModal({
                                 <td>{pos.description}</td>
                                 <td>{pos.quantity}</td>
                                 <td>{formatAmount(pos.unit_price * 100)}</td>
-                                <td>{pos.unit}</td>
                                 <td className="font-semibold">
                                   {formatAmount(pos.total_price * 100)}
                                 </td>
@@ -726,14 +718,26 @@ export function RequestDetailModal({
                           </tbody>
                           <tfoot>
                             <tr>
-                              <th colSpan={5}>Total</th>
+                              <th colSpan={4}>Total</th>
                               <th>
-                                {formatAmount(request.prediction.amount_net)}
+                                {formatAmountTotal(request.prediction.amount_net)}
                               </th>
                             </tr>
                           </tfoot>
                         </table>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Edit Button */}
+                  {!editing && (
+                    <div className="flex justify-end mt-4">
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => setEditing(true)}
+                      >
+                        Edit
+                      </button>
                     </div>
                   )}
                 </div>
