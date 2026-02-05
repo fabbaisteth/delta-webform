@@ -454,6 +454,11 @@ export default function MovingForm() {
           ? calculatedVolumeFromGoods
           : (formData.total_volume_m3 || 0));
 
+      // Validate that total volume is greater than 0
+      if (totalVolume <= 0) {
+        throw new Error('Bitte geben Sie ein Gesamtvolumen größer als 0 m³ an.');
+      }
+
       // Convert furniture_assembly to goods format for backend
       // Only include rooms that have furniture items
       const goodsFromFurniture: GoodsRoom[] = furnitureAssembly
@@ -1139,18 +1144,30 @@ export default function MovingForm() {
                         });
 
                         const displayVolume = calculatedVolume > 0 ? calculatedVolume.toFixed(2) : (formData.total_volume_m3 || 0).toFixed(2);
+                        const hasVolume = calculatedVolume > 0 || (formData.total_volume_m3 && formData.total_volume_m3 > 0);
 
                         return (
                           <div className="card bg-gray-50 border border-gray-200">
                             <div className="card-body p-4 lg:p-6">
                               <h3 className="text-base lg:text-lg font-semibold text-gray-800 mb-3 lg:mb-4">Volumen</h3>
                               <div className="text-sm">
-                                <div>
-                                  <strong>Gesamtvolumen:</strong> {displayVolume} m³
-                                </div>
-                                {calculatedVolume > 0 && (
-                                  <div className="text-xs text-gray-600 mt-1">
-                                    (berechnet aus ausgewählten Möbeln)
+                                {hasVolume ? (
+                                  <>
+                                    <div>
+                                      <strong>Gesamtvolumen:</strong> {displayVolume} m³
+                                    </div>
+                                    {calculatedVolume > 0 && (
+                                      <div className="text-xs text-gray-600 mt-1">
+                                        (berechnet aus ausgewählten Möbeln)
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="text-amber-600">
+                                    <strong>Gesamtvolumen:</strong> Nicht angegeben
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      Bitte geben Sie das Gesamtvolumen manuell ein
+                                    </div>
                                   </div>
                                 )}
                               </div>
