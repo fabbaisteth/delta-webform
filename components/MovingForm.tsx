@@ -107,6 +107,8 @@ export default function MovingForm() {
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' });
+  const [showManualCbmModal, setShowManualCbmModal] = useState(false);
+  const [manualCbmValue, setManualCbmValue] = useState<string>('');
 
   // Default form state
   const getDefaultFormData = (): Partial<CustomerForm & {
@@ -561,30 +563,22 @@ export default function MovingForm() {
         }
       }
 
-      // If on furniture_selection, go to furniture_services
+      // If on furniture_selection, validate that furniture items exist
       if (currentSubStep === 'furniture_selection') {
-        const furnitureServicesIndex = currentGroup.subSteps.indexOf('furniture_services');
-        const hasFurnitureRooms = (formData as any).furniture_selected_rooms?.length > 0;
-        const kitchenOrLampItems = hasKitchenOrLampItems();
+        const furnitureAssembly = (formData as any).furniture_assembly || [];
+        const hasFurnitureItems = furnitureAssembly.some((rf: any) => {
+          const furniture = rf.furniture || [];
+          return furniture.length > 0 && furniture.some((f: any) => f.item && (f.quantity || 0) > 0);
+        });
 
-
-        if (hasFurnitureRooms && kitchenOrLampItems && furnitureServicesIndex >= 0) {
-          const subStepKey = `${currentStepGroupIndex}:${furnitureServicesIndex}`;
-          setCurrentSubStepIndex(furnitureServicesIndex);
-          setVisitedSubSteps(prev => new Set([...prev, subStepKey]));
-          return;
-        } else {
-          // Skip furniture_services if no rooms, go to next group
-          if (currentStepGroupIndex < visibleGroups.length - 1) {
-            const nextGroupIndex = currentStepGroupIndex + 1;
-            const nextSubStepKey = `${nextGroupIndex}:0`;
-            setCurrentStepGroupIndex(nextGroupIndex);
-            setCurrentSubStepIndex(0);
-            setVisitedStepGroups(prev => new Set([...prev, nextGroupIndex]));
-            setVisitedSubSteps(prev => new Set([...prev, nextSubStepKey]));
-          }
+        // If no furniture items, show modal for manual CBM input
+        if (!hasFurnitureItems) {
+          setShowManualCbmModal(true);
           return;
         }
+
+        proceedFromFurnitureSelection();
+        return;
       }
     }
 
@@ -850,6 +844,7 @@ export default function MovingForm() {
 
   // Helper function to get the correct sub-step index for goods group, skipping furniture_services if no kitchen/lamp items
   const getGoodsGroupSubStepIndex = (group: any, targetIndex: number): number => {
+    if (!group?.subSteps) return targetIndex;
     const targetSubStep = group.subSteps[targetIndex];
 
     // If trying to go to furniture_services but no kitchen/lamp items, redirect to furniture_selection
@@ -865,9 +860,38 @@ export default function MovingForm() {
     return targetIndex;
   }
 
+  // Helper function to proceed from furniture_selection to next step
+  const proceedFromFurnitureSelection = () => {
+    const currentGroup = getCurrentStepGroup();
+    if (!currentGroup) return;
+
+    const furnitureServicesIndex = currentGroup.subSteps.indexOf('furniture_services');
+    const hasFurnitureRooms = (formData as any).furniture_selected_rooms?.length > 0;
+    const kitchenOrLampItems = hasKitchenOrLampItems();
+    const visibleGroups = getVisibleStepGroups();
+    const currentStepGroupIndex = visibleGroups.findIndex(g => g.id === currentGroup.id);
+
+    if (hasFurnitureRooms && kitchenOrLampItems && furnitureServicesIndex >= 0) {
+      const subStepKey = `${currentStepGroupIndex}:${furnitureServicesIndex}`;
+      setCurrentSubStepIndex(furnitureServicesIndex);
+      setVisitedSubSteps(prev => new Set([...prev, subStepKey]));
+    } else {
+      // Skip furniture_services if no rooms, go to next group
+      if (currentStepGroupIndex < visibleGroups.length - 1) {
+        const nextGroupIndex = currentStepGroupIndex + 1;
+        const nextSubStepKey = `${nextGroupIndex}:0`;
+        setCurrentStepGroupIndex(nextGroupIndex);
+        setCurrentSubStepIndex(0);
+        setVisitedStepGroups(prev => new Set([...prev, nextGroupIndex]));
+        setVisitedSubSteps(prev => new Set([...prev, nextSubStepKey]));
+      }
+    }
+  };
+
   // Function to resubmit the form
   const handleResubmit = () => {
     setIsSubmitted(false);
+    setIsSubmitting(false); // Reset submitting state
     setSubmitStatus({ type: null, message: '' });
     // Form data is already preserved in state and localStorage, so we can just resubmit
     // Scroll to top to show the form again
@@ -1590,6 +1614,101 @@ export default function MovingForm() {
 
       {/* Spacer for mobile bottom navigation */}
       <div className="lg:hidden h-24" />
+
+      {/* Manual CBM Input Modal */}
+      {showManualCbmModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => {
+            setShowManualCbmModal(false);
+            setManualCbmValue('');
+          }}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Gesamtvolumen manuell eingeben</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualCbmModal(false);
+                  setManualCbmValue('');
+                }}
+                className="btn btn-circle btn-ghost hover:bg-gray-100"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-semibold">Gesamtvolumen (m³)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={manualCbmValue}
+                  onChange={(e) => setManualCbmValue(e.target.value)}
+                  placeholder="z.B. 15.5"
+                  className="input input-bordered w-full"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && manualCbmValue && parseFloat(manualCbmValue) > 0) {
+                      const cbmValue = parseFloat(manualCbmValue);
+                      setFormData(prev => ({ ...prev, total_volume_m3: cbmValue } as any));
+                      setShowManualCbmModal(false);
+                      setManualCbmValue('');
+                      // Continue to next step
+                      proceedFromFurnitureSelection();
+                    }
+                  }}
+                />
+                <label className="label">
+                  <span className="label-text-alt text-gray-500">
+                    Bitte geben Sie das geschätzte Gesamtvolumen in Kubikmetern ein
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualCbmModal(false);
+                  setManualCbmValue('');
+                }}
+                className="btn btn-outline px-8"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!manualCbmValue || parseFloat(manualCbmValue) <= 0) {
+                    alert('Bitte geben Sie einen gültigen Wert größer als 0 ein.');
+                    return;
+                  }
+                  const cbmValue = parseFloat(manualCbmValue);
+                  setFormData(prev => ({ ...prev, total_volume_m3: cbmValue } as any));
+                  setShowManualCbmModal(false);
+                  setManualCbmValue('');
+                  // Continue to next step
+                  proceedFromFurnitureSelection();
+                }}
+                disabled={!manualCbmValue || parseFloat(manualCbmValue) <= 0}
+                className="btn btn-primary px-8 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Weiter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
