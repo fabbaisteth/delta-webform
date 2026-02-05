@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, RefreshCw } from 'lucide-react';
-import RequestsTable from '@/components/RequestsTable';
+import RequestsTable from '@/admin/RequestsTable';
 
 const getApiUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
