@@ -17,18 +17,7 @@ import RoomSelectionForm from './RoomSelectionForm';
 import RoomFurnitureSelection from './RoomFurnitureSelection';
 import FurnitureServicesForm from './FurnitureServicesForm';
 import FormHeader from './FormHeader';
-
-// Get API URL from environment variable
-// In production (Vercel), this should be set to your HTTPS backend URL
-// e.g., https://31.220.74.62 or https://your-domain.com
-const API_URL = process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:4001'
-    : ''); // Empty string will cause error if not set in production
-
-if (!API_URL && typeof window !== 'undefined') {
-  console.error('NEXT_PUBLIC_API_URL environment variable is not set!');
-}
+import { submitForm } from '@/lib/api';
 
 // Step Group Configuration
 type StepGroupId = 'addresses' | 'contact' | 'storage' | 'goods' | 'cartonage' | 'services' | 'review';
@@ -407,8 +396,26 @@ export default function MovingForm() {
         throw new Error('Bitte geben Sie eine gültige Telefonnummer ein.');
       }
 
-      if (!formData.from_location?.address || !formData.to_location?.address) {
-        throw new Error('Bitte geben Sie beide Adressen an.');
+      // Validate addresses - check if address field or individual components are present
+      const fromLocation = formData.from_location;
+      const toLocation = formData.to_location;
+
+      const fromAddress = fromLocation?.address ||
+        (fromLocation?.street_name && fromLocation?.city ?
+          `${fromLocation.street_name} ${fromLocation.house_number || ''}, ${fromLocation.postal_code || ''} ${fromLocation.city}`.trim() :
+          '');
+
+      const toAddress = toLocation?.address ||
+        (toLocation?.street_name && toLocation?.city ?
+          `${toLocation.street_name} ${toLocation.house_number || ''}, ${toLocation.postal_code || ''} ${toLocation.city}`.trim() :
+          '');
+
+      if (!fromAddress || !fromAddress.trim()) {
+        throw new Error('Bitte geben Sie die Auszugsadresse vollständig an.');
+      }
+
+      if (!toAddress || !toAddress.trim()) {
+        throw new Error('Bitte geben Sie die Einzugsadresse vollständig an.');
       }
 
       if (!formData.moving_out_date || !formData.moving_in_date) {
@@ -500,36 +507,9 @@ export default function MovingForm() {
         // storage_info and cartonage_info temporarily excluded until backend support is added
       };
 
-      if (!API_URL) {
-        throw new Error('API URL is not configured. Please set NEXT_PUBLIC_API_URL environment variable in Vercel.');
-      }
-
-      const response = await fetch(`${API_URL}/api/submit-form`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let error;
-        try {
-          const errorText = await response.text();
-          // Try to parse as JSON, fallback to text
-          try {
-            error = JSON.parse(errorText);
-          } catch {
-            error = { error: errorText || `Server error: ${response.status} ${response.statusText}` };
-          }
-        } catch (e) {
-          throw new Error(`Server error: ${response.status} ${response.statusText}`);
-        }
-        throw new Error(error.detail?.error || error.error || 'Fehler beim Senden der Anfrage');
-      }
-
-      const result = await response.json();
-      console.log('Request ID:', result.request_id);
+      // Submit using the API service (can also load from localStorage if needed)
+      const result = await submitForm(payload);
+      console.log('Request UUID:', result.request_uuid);
       setIsSubmitted(true);
 
       // Don't clear localStorage on success - allows resubmission if needed

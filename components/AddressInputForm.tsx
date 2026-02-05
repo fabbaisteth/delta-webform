@@ -5,6 +5,47 @@ import { Location } from '@/types/form';
 import { MapPin, Calendar } from 'lucide-react';
 import FormHeader from './FormHeader';
 
+/**
+ * Constructs a full address string from Location components
+ * Falls back to individual components if address field is empty
+ */
+function constructAddressString(location: Location): string {
+    // If address field is already populated and not empty, use it
+    if (location.address && location.address.trim()) {
+        return location.address.trim();
+    }
+
+    // Otherwise, construct from individual components
+    const parts: string[] = [];
+
+    if (location.street_name) {
+        parts.push(location.street_name.trim());
+    }
+
+    if (location.house_number) {
+        parts.push(location.house_number.trim());
+    }
+
+    if (location.postal_code) {
+        parts.push(location.postal_code.trim());
+    }
+
+    if (location.city) {
+        parts.push(location.city.trim());
+    }
+
+    if (location.state) {
+        parts.push(location.state.trim());
+    }
+
+    if (location.country) {
+        parts.push(location.country.trim());
+    }
+
+    // Join with commas, or return empty string if no components
+    return parts.length > 0 ? parts.join(', ') : '';
+}
+
 interface AddressInputFormProps {
     location: Location;
     onChange: (location: Location) => void;
@@ -125,6 +166,24 @@ export default function AddressInputForm({
         return result;
     };
 
+    /**
+     * Helper function to update location with automatic address construction
+     * If address field is empty or only whitespace, constructs it from components
+     */
+    const updateLocation = (updates: Partial<Location>) => {
+        const updatedLocation = { ...location, ...updates };
+
+        // If address field is empty or only whitespace, construct it from components
+        if (!updatedLocation.address || !updatedLocation.address.trim()) {
+            const constructedAddress = constructAddressString(updatedLocation);
+            if (constructedAddress) {
+                updatedLocation.address = constructedAddress;
+            }
+        }
+
+        onChange(updatedLocation);
+    };
+
     return (
         <div className="space-y-6">
             <FormHeader
@@ -163,7 +222,7 @@ export default function AddressInputForm({
                             type="text"
                             className="input input-bordered w-full bg-gray-100 text-gray-600"
                             value={location.street_name || ''}
-                            onChange={(e) => onChange({ ...location, street_name: e.target.value })}
+                            onChange={(e) => updateLocation({ street_name: e.target.value })}
                             placeholder="Straßenname"
                             required
                         />
@@ -176,7 +235,7 @@ export default function AddressInputForm({
                             type="text"
                             className="input input-bordered w-full bg-gray-100 text-gray-600"
                             value={location.house_number || ''}
-                            onChange={(e) => onChange({ ...location, house_number: e.target.value })}
+                            onChange={(e) => updateLocation({ house_number: e.target.value })}
                             placeholder="Hausnummer"
                             required
                         />
@@ -193,7 +252,7 @@ export default function AddressInputForm({
                             type="text"
                             className="input input-bordered w-full bg-gray-100 text-gray-600"
                             value={location.city || ''}
-                            onChange={(e) => onChange({ ...location, city: e.target.value })}
+                            onChange={(e) => updateLocation({ city: e.target.value })}
                             placeholder="Ort"
                             required
                         />
@@ -206,7 +265,7 @@ export default function AddressInputForm({
                             type="text"
                             className="input input-bordered w-full bg-gray-100 text-gray-600"
                             value={location.state || ''}
-                            onChange={(e) => onChange({ ...location, state: e.target.value })}
+                            onChange={(e) => updateLocation({ state: e.target.value })}
                             placeholder="Bundesland"
                             required
                         />
@@ -223,7 +282,7 @@ export default function AddressInputForm({
                             type="text"
                             className="input input-bordered w-full bg-gray-100 text-gray-600"
                             value={location.postal_code || ''}
-                            onChange={(e) => onChange({ ...location, postal_code: e.target.value })}
+                            onChange={(e) => updateLocation({ postal_code: e.target.value })}
                             placeholder="Postleitzahl"
                             required
                         />
@@ -236,7 +295,7 @@ export default function AddressInputForm({
                             type="text"
                             className="input input-bordered w-full bg-gray-100 text-gray-600"
                             value={location.country || ''}
-                            onChange={(e) => onChange({ ...location, country: e.target.value })}
+                            onChange={(e) => updateLocation({ country: e.target.value })}
                             placeholder="Land"
                             required
                         />
