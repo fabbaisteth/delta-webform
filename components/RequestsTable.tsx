@@ -30,12 +30,25 @@ interface AIPredictionResponse {
 }
 
 interface RequestWithEmailStatus {
-  id: number;
+  uuid?: string; // New format uses UUID
+  id?: number; // Legacy format
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
-  from_address: string;
-  to_address: string;
+  // New format: separate address fields
+  from_street?: string;
+  from_street_number?: string;
+  from_zip?: string;
+  from_city?: string;
+  from_country_code?: string;
+  to_street?: string;
+  to_street_number?: string;
+  to_zip?: string;
+  to_city?: string;
+  to_country_code?: string;
+  // Legacy format: combined addresses (for backward compatibility)
+  from_address?: string;
+  to_address?: string;
   distance_km: number | null;
   total_volume_cbm: number | null;
   received_at: string;
@@ -43,7 +56,8 @@ interface RequestWithEmailStatus {
   moving_in_date: string | null;
   prediction: AIPredictionResponse | null;
   email_status: string | null;
-  prediction_id: number | null;
+  prediction_uuid?: string; // New format
+  prediction_id?: number | null; // Legacy format
   data_parsed?: any; // Full CustomerForm data from the request
 }
 
@@ -71,7 +85,7 @@ export default function RequestsTable({
   onSearchChange,
 }: RequestsTableProps) {
   const [selectedRequest, setSelectedRequest] = useState<RequestWithEmailStatus | null>(null);
-  const [sendingEmail, setSendingEmail] = useState<number | null>(null);
+  const [sendingEmail, setSendingEmail] = useState<string | number | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'failed'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -82,38 +96,66 @@ export default function RequestsTable({
     return localStorage.getItem('admin_authenticated') === 'true';
   };
 
-  const handleSendEmail = async (e: React.MouseEvent, requestId: number) => {
+  const handleSendEmail = async (e: React.MouseEvent, request: RequestWithEmailStatus) => {
     e.stopPropagation(); // Prevent row click from opening modal
     if (!isAuthenticated()) {
       alert('Not authenticated');
       return;
     }
 
-    setSendingEmail(requestId);
+    const requestUuid = request.uuid;
+    if (!requestUuid) {
+      alert('Request UUID is required');
+      return;
+    }
+
+    // Ensure UUID is a string
+    const uuidString = String(requestUuid);
+    setSendingEmail(uuidString);
+
     try {
-      const response = await fetch(`${API_URL}/api/send_offer_mail`, {
+      const requestBody = { request_uuid: uuidString };
+      console.log('Sending email request:', requestBody, 'to', `${API_URL}/api/send-mail`);
+
+      const response = await fetch(`${API_URL}/api/send-mail`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ request_id: requestId }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Failed to send email' }));
-        throw new Error(error.error || 'Failed to send email');
+        const errorText = await response.text();
+        let errorMessage = `Failed to send email (${response.status})`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.detail || errorJson.error || errorMessage;
+        } catch {
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText}`;
+          }
+        }
+        console.error('Email send error:', errorMessage);
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json().catch(() => ({}));
       alert('Email sent successfully!');
       onRefresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to send email');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send email';
+      console.error('Email send error:', err);
+      alert(errorMessage);
     } finally {
       setSendingEmail(null);
     }
   };
 
-  const handleUpdatePrediction = async (predictionId: number, updates: any) => {
+  const handleUpdatePrediction = async (predictionId: string | number | null | undefined, updates: any) => {
+    if (!predictionId) {
+      throw new Error('No prediction ID provided');
+    }
     if (!isAuthenticated()) {
       throw new Error('Not authenticated');
     }
@@ -165,6 +207,41 @@ export default function RequestsTable({
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatAddress = (request: RequestWithEmailStatus, type: 'from' | 'to'): string => {
+    // If combined address exists (legacy format), use it
+    if (type === 'from' && request.from_address) {
+      return request.from_address;
+    }
+    if (type === 'to' && request.to_address) {
+      return request.to_address;
+    }
+
+    // Otherwise construct from individual fields
+    const street = type === 'from' ? request.from_street : request.to_street;
+    const streetNumber = type === 'from' ? request.from_street_number : request.to_street_number;
+    const zip = type === 'from' ? request.from_zip : request.to_zip;
+    const city = type === 'from' ? request.from_city : request.to_city;
+
+    const parts: string[] = [];
+    if (street) {
+      const streetPart = streetNumber ? `${street} ${streetNumber}` : street;
+      parts.push(streetPart);
+    }
+    if (zip && city) {
+      parts.push(`${zip} ${city}`);
+    } else if (city) {
+      parts.push(city);
+    } else if (zip) {
+      parts.push(zip);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : 'Nicht angegeben';
+  };
+
+  const getRequestId = (request: RequestWithEmailStatus): string | number => {
+    return request.uuid || request.id || '';
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -291,61 +368,66 @@ export default function RequestsTable({
             </tr>
           </thead>
           <tbody>
-            {sortedRequests.map((request) => (
-              <tr
-                key={request.id}
-                className="cursor-pointer hover:bg-base-200 transition-colors"
-                onClick={() => setSelectedRequest(request)}
-              >
-                <td className="font-semibold">#{request.id}</td>
-                <td>{request.customer_name}</td>
-                <td>
-                  <a
-                    href={`mailto:${request.customer_email}`}
-                    className="link link-primary"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {request.customer_email}
-                  </a>
-                </td>
-                <td>
-                  <div className="text-sm">
-                    <div className="truncate max-w-xs" title={request.from_address}>
-                      {request.from_address}
+            {sortedRequests.map((request) => {
+              const requestId = getRequestId(request);
+              const fromAddr = formatAddress(request, 'from');
+              const toAddr = formatAddress(request, 'to');
+              return (
+                <tr
+                  key={request.uuid || request.id}
+                  className="cursor-pointer hover:bg-base-200 transition-colors"
+                  onClick={() => setSelectedRequest(request)}
+                >
+                  <td className="font-semibold">#{request.uuid ? request.uuid.substring(0, 8) : request.id}</td>
+                  <td>{request.customer_name}</td>
+                  <td>
+                    <a
+                      href={`mailto:${request.customer_email}`}
+                      className="link link-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {request.customer_email}
+                    </a>
+                  </td>
+                  <td>
+                    <div className="text-sm">
+                      <div className="truncate max-w-xs" title={fromAddr}>
+                        {fromAddr}
+                      </div>
+                      <div className="text-gray-500">→</div>
+                      <div className="truncate max-w-xs" title={toAddr}>
+                        {toAddr}
+                      </div>
                     </div>
-                    <div className="text-gray-500">→</div>
-                    <div className="truncate max-w-xs" title={request.to_address}>
-                      {request.to_address}
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined ? (
-                    <span className="badge badge-outline">
-                      {Number(request.total_volume_cbm).toFixed(2)} m³
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="text-sm">{formatDate(request.received_at)}</td>
-                <td>{getStatusBadge(request.email_status)}</td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={(e) => handleSendEmail(e, request.id)}
-                    disabled={sendingEmail === request.id}
-                    title="Send Email"
-                  >
-                    {sendingEmail === request.id ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                  </td>
+                  <td>
+                    {request.total_volume_cbm !== null && request.total_volume_cbm !== undefined ? (
+                      <span className="badge badge-outline">
+                        {Number(request.total_volume_cbm).toFixed(2)} m³
+                      </span>
                     ) : (
-                      <Mail className="w-4 h-4" />
+                      <span className="text-gray-400">-</span>
                     )}
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="text-sm">{formatDate(request.received_at)}</td>
+                  <td>{getStatusBadge(request.email_status)}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={(e) => handleSendEmail(e, request)}
+                      disabled={sendingEmail === (request.uuid || request.id)}
+                      title="Send Email"
+                    >
+                      {sendingEmail === (request.uuid || request.id) ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Mail className="w-4 h-4" />
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

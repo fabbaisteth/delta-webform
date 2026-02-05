@@ -35,12 +35,25 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 
 interface RequestWithEmailStatus {
-  id: number;
+  uuid?: string; // New format uses UUID
+  id?: number; // Legacy format
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
-  from_address: string;
-  to_address: string;
+  // New format: separate address fields
+  from_street?: string;
+  from_street_number?: string;
+  from_zip?: string;
+  from_city?: string;
+  from_country_code?: string;
+  to_street?: string;
+  to_street_number?: string;
+  to_zip?: string;
+  to_city?: string;
+  to_country_code?: string;
+  // Legacy format: combined addresses (for backward compatibility)
+  from_address?: string;
+  to_address?: string;
   distance_km: number | null;
   total_volume_cbm: number | null;
   received_at: string;
@@ -48,7 +61,8 @@ interface RequestWithEmailStatus {
   moving_in_date: string | null;
   prediction: any | null;
   email_status: string | null;
-  prediction_id: number | null;
+  prediction_uuid?: string; // New format
+  prediction_id?: number | null; // Legacy format
   data_parsed?: any; // Full CustomerForm data from the request
 }
 
@@ -89,14 +103,34 @@ export default function AdminPage() {
       const response = await fetch(`${API_URL}/api/requests/pending-emails?${params.toString()}`);
 
       if (!response.ok) {
-        throw new Error('Failed to fetch requests');
+        const errorText = await response.text();
+        let errorMessage = `Failed to fetch requests (${response.status})`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.detail || errorJson.error || errorMessage;
+        } catch {
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText.substring(0, 200)}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      setRequests(Array.isArray(data) ? data : []);
-      // Note: The API doesn't return total count, so we'll use the array length
-      // You might want to add total count to the API response
-      setTotalCount(data.length);
+
+      // Handle different response formats
+      let requestsList: RequestWithEmailStatus[] = [];
+      if (Array.isArray(data)) {
+        requestsList = data;
+      } else if (data.requests && Array.isArray(data.requests)) {
+        requestsList = data.requests;
+      } else if (data.data && Array.isArray(data.data)) {
+        requestsList = data.data;
+      }
+
+      setRequests(requestsList);
+      // Use total_count from response if available, otherwise use array length
+      setTotalCount(data.total_count || data.total || requestsList.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load requests');
     } finally {

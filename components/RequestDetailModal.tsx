@@ -24,12 +24,25 @@ interface AIPredictionResponse {
 }
 
 interface RequestWithEmailStatus {
-  id: number;
+  uuid?: string; // New format uses UUID
+  id?: number; // Legacy format
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
-  from_address: string;
-  to_address: string;
+  // New format: separate address fields
+  from_street?: string;
+  from_street_number?: string;
+  from_zip?: string;
+  from_city?: string;
+  from_country_code?: string;
+  to_street?: string;
+  to_street_number?: string;
+  to_zip?: string;
+  to_city?: string;
+  to_country_code?: string;
+  // Legacy format: combined addresses (for backward compatibility)
+  from_address?: string;
+  to_address?: string;
   distance_km: number | null;
   total_volume_cbm: number | null;
   received_at: string;
@@ -37,14 +50,15 @@ interface RequestWithEmailStatus {
   moving_in_date: string | null;
   prediction: AIPredictionResponse | null;
   email_status: string | null;
-  prediction_id: number | null;
+  prediction_uuid?: string; // New format
+  prediction_id?: number | null; // Legacy format
   data_parsed?: any; // Full CustomerForm data from the request
 }
 
 interface RequestDetailModalProps {
   request: RequestWithEmailStatus;
   onClose: () => void;
-  onUpdate: (predictionId: number, updates: any) => Promise<void>;
+  onUpdate: (predictionId: string | number, updates: any) => Promise<void>;
 }
 
 export function RequestDetailModal({
@@ -85,8 +99,40 @@ export function RequestDetailModal({
     });
   };
 
+  const formatAddress = (request: RequestWithEmailStatus, type: 'from' | 'to'): string => {
+    // If combined address exists (legacy format), use it
+    if (type === 'from' && request.from_address) {
+      return request.from_address;
+    }
+    if (type === 'to' && request.to_address) {
+      return request.to_address;
+    }
+
+    // Otherwise construct from individual fields
+    const street = type === 'from' ? request.from_street : request.to_street;
+    const streetNumber = type === 'from' ? request.from_street_number : request.to_street_number;
+    const zip = type === 'from' ? request.from_zip : request.to_zip;
+    const city = type === 'from' ? request.from_city : request.to_city;
+
+    const parts: string[] = [];
+    if (street) {
+      const streetPart = streetNumber ? `${street} ${streetNumber}` : street;
+      parts.push(streetPart);
+    }
+    if (zip && city) {
+      parts.push(`${zip} ${city}`);
+    } else if (city) {
+      parts.push(city);
+    } else if (zip) {
+      parts.push(zip);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : 'Nicht angegeben';
+  };
+
   const handleSave = async () => {
-    if (!request.prediction_id) {
+    const predictionId = request.prediction_uuid || request.prediction_id;
+    if (!predictionId) {
       alert("No prediction ID found");
       return;
     }
@@ -99,7 +145,7 @@ export function RequestDetailModal({
       if (aiWorkhours !== null) updates.ai_workhours = aiWorkhours;
       if (positions.length > 0) updates.positions = positions;
 
-      await onUpdate(request.prediction_id, updates);
+      await onUpdate(predictionId, updates);
       setEditing(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save");
@@ -153,7 +199,9 @@ export function RequestDetailModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-base-300">
           <div>
-            <h2 className="text-xl font-semibold">Request #{request.id}</h2>
+            <h2 className="text-xl font-semibold">
+              Request #{request.uuid ? request.uuid.substring(0, 8) : request.id}
+            </h2>
             <p className="text-sm text-base-content/60 mt-1">{request.customer_name}</p>
           </div>
           <button
@@ -182,11 +230,11 @@ export function RequestDetailModal({
               )}
               <div>
                 <label className="text-sm text-base-content/60">From Address</label>
-                <div className="font-medium">{request.from_address}</div>
+                <div className="font-medium">{formatAddress(request, 'from')}</div>
               </div>
               <div>
                 <label className="text-sm text-base-content/60">To Address</label>
-                <div className="font-medium">{request.to_address}</div>
+                <div className="font-medium">{formatAddress(request, 'to')}</div>
               </div>
               {request.distance_km && (
                 <div>
